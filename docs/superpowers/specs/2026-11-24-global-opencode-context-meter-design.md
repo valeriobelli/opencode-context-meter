@@ -1,6 +1,6 @@
 # Global OpenCode Context Meter — Design
 
-**Status:** Approved by the user for design; awaiting spec review before implementation.
+**Status:** Implemented; running final verification on `master`.
 
 ## Goal
 
@@ -39,17 +39,19 @@ Use the current session data and available model usage metadata. Where OpenCode 
 
 ## Acceptance checks
 
-- The plugin loads from the user's global OpenCode configuration and is available across projects — manual `#global-plugin-loads`.
-- The TUI footer shows a compact current-session context meter when usage data is available, with a safe fallback when it is not — manual `#footer-meter`.
-- `/context` displays estimated category counts and percentages and clearly identifies them as estimates — manual `#context-report`.
-- The estimates are calculated locally; no external service is called — code-changes `#local-estimates`.
-- Focused tests cover category estimation and missing/empty usage data — unit `#estimator-tests`.
+- The plugin loads from the user's global OpenCode configuration and is available across projects — manual: global plugin load `#the-plugin-loads-from-the-user-s-global-opencode`
+- The TUI footer shows a compact current-session context meter when usage data is available, with a safe fallback when it is not — manual: footer meter `#the-tui-footer-shows-a-compact-current-session-c`
+- `/context` displays estimated category counts and percentages and clearly identifies them as estimates — manual: context report `#context-displays-estimated-category-counts-and-p`
+- The estimates are calculated locally; no external service is called — code-changes: local estimator `#the-estimates-are-calculated-locally-no-external`
+- Focused tests cover category estimation and missing/empty usage data — unit: estimate.test.mjs `#focused-tests-cover-category-estimation-and-miss`
 
 ## Decisions
 
 - Use the global TUI plugin surface only; mockup A was selected and Desktop integration was not requested.
 - Present category composition as estimates because OpenCode does not expose every hidden prompt section directly.
 - Keep all processing local and avoid unrelated global configuration changes.
+- Rely on OpenCode v2 automatic discovery of `~/.config/opencode/plugins/context-meter/tui.tsx` without modifying `~/.config/opencode/cli.json`.
+- Use `context.client.session.context({ sessionID })` (post-compaction active messages) with fallback to `context.data.session.message.list(sessionID)`.
 
 ## Tasks
 
@@ -59,12 +61,12 @@ Use the current session data and available model usage metadata. Where OpenCode 
 - [x] Compare the mockups and confirm estimated breakdown behavior `#confirm-design`
 - [x] Write and self-review the design spec `#write-design-spec`
 ### Build
-- [ ] Implement the estimator and global TUI plugin `#implement-plugin`
-  - [ ] Add a failing focused estimator test first `#estimator-test-first`
-  - [ ] Add footer meter and `/context` report `#ui-and-command`
-- [ ] Commit the plugin and spec `#commit-plugin`
+- [x] Implement the estimator and global TUI plugin `#implement-plugin`
+  - [x] Add a failing focused estimator test first `#estimator-test-first`
+  - [x] Add footer meter and `/context` report `#ui-and-command`
+- [x] Commit the plugin and spec `#commit-plugin`
 ### Test
-- [ ] Run focused tests and global TUI smoke checks `#verify-plugin`
+- [~] Run focused tests and global TUI smoke checks `#verify-plugin`
 ### Review
 - [ ] User reviews the installed plugin and approves the outcome `#user-outcome-review`
 

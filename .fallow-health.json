@@ -1,0 +1,34 @@
+{
+  "kind": "health",
+  "finding_counts": {
+    "src/tui.tsx": {
+      "crap_moderate": {
+        "count": 4
+      }
+    }
+  },
+  "identity_finding_counts": {
+    "src/tui.tsx\u0000matchesModelRef": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/tui.tsx\u0000modelLabelFor": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/tui.tsx\u0000resolveUsageAndLimit": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/tui.tsx\u0000windowLine": {
+      "crap_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": []
+}

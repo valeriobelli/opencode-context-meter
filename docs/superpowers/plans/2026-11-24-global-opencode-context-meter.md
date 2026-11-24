@@ -26,11 +26,11 @@ No package installation or unrelated `cli.json` / `opencode.jsonc` changes: Open
 - [ ] **Step 1: Write the failing test** in `estimate.test.mjs`:
 
 ```js
-import test from "node:test"
-import assert from "node:assert/strict"
-import { estimateComposition } from "./estimate.mjs"
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { estimateComposition } from './estimate.mjs'
 
-test("allocates reported prompt tokens across visible and residual categories", () => {
+test('allocates reported prompt tokens across visible and residual categories', () => {
   assert.deepEqual(
     estimateComposition({
       promptTokens: 100,
@@ -42,18 +42,22 @@ test("allocates reported prompt tokens across visible and residual categories", 
       totalTokens: 100,
       contextPercent: 50,
       categories: [
-        { name: "Conversation", tokens: 30, percent: 30 },
-        { name: "Tools and files", tokens: 20, percent: 20 },
-        { name: "System and instructions (estimated)", tokens: 50, percent: 50 },
+        { name: 'Conversation', tokens: 30, percent: 30 },
+        { name: 'Tools and files', tokens: 20, percent: 20 },
+        { name: 'System and instructions (estimated)', tokens: 50, percent: 50 },
       ],
     },
   )
 })
 
-test("returns no meter percentage when usage or the context limit is unavailable", () => {
+test('returns no meter percentage when usage or the context limit is unavailable', () => {
   assert.equal(
-    estimateComposition({ promptTokens: undefined, contextLimit: undefined, conversationChars: 0, toolChars: 0 })
-      .contextPercent,
+    estimateComposition({
+      promptTokens: undefined,
+      contextLimit: undefined,
+      conversationChars: 0,
+      toolChars: 0,
+    }).contextPercent,
     undefined,
   )
 })

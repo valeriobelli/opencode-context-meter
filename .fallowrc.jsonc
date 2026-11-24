@@ -1,0 +1,9 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  // OpenCode resolves a locally checked-out plugin directory through package.json
+  // exports or root tui entrypoints. Declaring tui.ts as an entry keeps dead-code
+  // analysis honest alongside package.json exports.
+  "entry": ["tui.ts"],
+  // Keep existing static CRAP findings from blocking the initial import.
+  "audit": { "healthBaseline": ".fallow-health.json" },
+}

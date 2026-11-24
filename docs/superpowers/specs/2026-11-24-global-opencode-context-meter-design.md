@@ -56,18 +56,27 @@ Use the current session data and available model usage metadata. Where OpenCode 
 ## Tasks
 
 ### Start
+
 - [x] Inspect the global OpenCode setup and current version `#inspect-installation`
+
 ### Plan
+
 - [x] Compare the mockups and confirm estimated breakdown behavior `#confirm-design`
 - [x] Write and self-review the design spec `#write-design-spec`
+
 ### Build
+
 - [x] Implement the estimator and global TUI plugin `#implement-plugin`
   - [x] Add a failing focused estimator test first `#estimator-test-first`
   - [x] Add footer meter and `/context` report `#ui-and-command`
 - [x] Commit the plugin and spec `#commit-plugin`
+
 ### Test
+
 - [~] Run focused tests and global TUI smoke checks `#verify-plugin`
+
 ### Review
+
 - [ ] User reviews the installed plugin and approves the outcome `#user-outcome-review`
 
 ## Verification plan

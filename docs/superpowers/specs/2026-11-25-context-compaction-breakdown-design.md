@@ -2,7 +2,7 @@
 
 ## Outcome
 
-The context footer never reuses pre-compaction usage after a completed compaction, and `/context` can show a granular, clearly estimated breakdown for conversation, tool outputs and files, skills, MCP and tool definitions, system instructions, and the remaining unaccounted share.
+The context footer never reuses pre-compaction usage after a completed compaction. `/context` shows a granular, clearly estimated breakdown and explains whether compaction is worth considering; the footer communicates context pressure with color and text.
 
 ## Observed problem
 
@@ -31,6 +31,10 @@ Sources:
 - Enable the server part through the existing global `opencode.jsonc` plugin list. Preserve the existing TUI-only discovery and provide a local fallback when RPC is unavailable.
 - Do not publish to npm, add provider-specific tokenizers, modify compaction, or add a Desktop GUI integration.
 - Implement the approved server/TUI design with regression tests and smoke checks (user approved **Approve design (Recommended)**).
+- Use advisory, deterministic rules only; do not invoke an AI model or compact automatically (user selected **Advisory only (Recommended)** and **Rules first (Recommended)**).
+- Use visual layout B: pressure, auto-compaction threshold, possible benefit, reasons, and composition; pair footer color with text (user: **We can go with B**).
+- Warn at 80% and show urgent at 95% of the estimated automatic compaction threshold (user selected **Early (Recommended)**).
+- If fixed instructions and tool definitions dominate, preserve the pressure color and explain that compaction may free little, suggesting smaller fixed context (user selected **Warn and explain (Recommended)**).
 
 ## Architecture and data flow
 
@@ -70,6 +74,14 @@ When RPC is unavailable or no primary snapshot exists, retain a local-only repor
 
 Update the report explanation to distinguish reported prompt tokens from character-based category estimates. Model-limit lookup, footer formatting, and unrelated plugin behavior stay unchanged.
 
+### Compaction advice
+
+The footer presents a text label and a theme-appropriate green, amber, or red color. With a known automatic threshold, calculate pressure as the latest valid prompt usage divided by the estimated threshold: below 80% is green, 80% to under 95% is amber, and 95% or above is red. The threshold follows the effective location configuration, model input/context limits, and the installed OpenCode version's buffer semantics, including the default minimum reserve and token-count buffers. Automatic compaction disabled is explicitly shown as disabled; never describe an automatic threshold as active in that case. If configuration, limits, or fresh usage are unavailable, show an unknown state instead of inventing a threshold or color classification. These are approximate plugin warnings, not OpenCode's authoritative compaction decision: OpenCode estimates unmeasured recent content and can trigger for provider overflow.
+
+The `/context` modal uses layout B. Show context pressure, estimated automatic threshold when available, a potential-benefit description, and concrete reasons before the category rows. When measured fixed system instructions and tool definitions exceed half of the estimated prompt, say compaction may free little and suggest reducing fixed context. Otherwise, when estimated conversation plus tool output exceeds half of the prompt, say history may shrink and suggest considering compaction if pressure is amber or red. If neither signal is reliable or sufficient, say potential benefit is unknown. These deliberately simple, approximate rules do not imply exact savings, relevance, or a guarantee that compaction will help: OpenCode retains recent content and summary size is unknown. Only evaluate composition-based advice for a fresh, matching primary-request snapshot; otherwise show unknown rather than applying the rules to a stale or incomplete breakdown. The plugin never initiates compaction.
+
+Source: [OpenCode compaction documentation](https://opencode.ai/docs/compaction) and [v2.4.1 compaction estimator](https://github.com/anomalyco/opencode/blob/v2.4.1/packages/core/src/session/compaction.ts).
+
 ## Configuration and documentation
 
 - Export the package root as `./src/index.ts`, retain `./tui`, and expose `./rpc` as `./src/rpc.ts` in `package.json`.
@@ -92,6 +104,8 @@ Update the report explanation to distinguish reported prompt tokens from charact
 - `/context` reports the six approved categories with bounded token and percentage totals when server data is available — unit: `test/estimate.check.ts` and `test/request.check.ts` `#category-accounting`
 - The loaded global plugin displays the detailed composition in an active session and retains a usable fallback without the server snapshot — manual: OpenCode PTY smoke checks `#detailed-report-and-fallback`
 - RPC output contains aggregate counts only and no prompt, skill, message, file, or tool-schema text — integration: RPC schema and live response inspection `#aggregate-only-rpc`
+- The footer uses labeled pressure colors and the modal explains compaction advice, including limited benefit and unknown data — manual: OpenCode PTY smoke checks `#compaction-advice-ui`
+- Rules respect effective buffer settings, automatic compaction disabled, threshold boundaries, stale snapshots, and missing inputs — unit: compaction-advice tests `#compaction-advice-rules`
 - Formatting, linting, type checking, unit tests, and Fallow pass — unit: `pnpm run check` `#repository-checks`
 
 ## Tasks
@@ -119,6 +133,10 @@ Update the report explanation to distinguish reported prompt tokens from charact
   - [ ] Add failing active-message and proportional-allocation tests first `#category-test-first`
   - [ ] Combine active messages with server counts and implement local fallback `#combine-composition`
   - [ ] Update README and add a minor Changeset `#docs-and-changeset`
+- [ ] Add compaction advice and accessible pressure colors `#compaction-advice`
+  - [ ] Write failing tests for thresholds, benefit signals, and unknown data `#advice-test-first`
+  - [ ] Implement rule-based pressure and benefit explanations `#advice-rules`
+  - [ ] Render the labeled colored footer and modal advice `#advice-ui`
 - [ ] Run preliminary checks and commit the implementation on `main` `#commit-breakdown`
 
 ### Test

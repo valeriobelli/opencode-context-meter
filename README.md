@@ -5,7 +5,7 @@ An [OpenCode v2](https://opencode.ai) TUI plugin that shows how much of the mode
 ## What it does
 
 - **Prompt footer** — shows context usage and a labeled pressure level: low, warning, urgent, disabled, or unknown. Warning starts at 80% of the estimated auto-compaction threshold; urgent starts at 95%. Before usage is reported, and immediately after compaction, it shows `ctx --`.
-- **`/context`** — shows reported usage, estimated compaction pressure and possible benefit, and an estimated composition. Use the arrow keys to scroll and `Esc` to close. Advice is informational: the plugin never calls a model or compacts a session.
+- **`/context`** — shows reported usage, estimated compaction pressure and possible benefit, and an estimated composition. Use left and right to switch between Overview, Skills, Tools, and System; use up and down to scroll and `Esc` to close. Advice is informational: the plugin never calls a model or compacts a session.
 
 ## Install
 

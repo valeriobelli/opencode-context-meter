@@ -76,8 +76,12 @@ export function snapshotMatchesUsage(
   latest: { readonly revision: number } | null | undefined,
   assistantCreated: number | undefined,
   status: 'idle' | 'running',
+  messages: readonly unknown[],
+  currentMessages: unknown,
 ): boolean {
   return (
+    Array.isArray(currentMessages) &&
+    JSON.stringify(currentMessages) === JSON.stringify(messages) &&
     status === 'idle' &&
     snapshot !== null &&
     latest?.revision === snapshot.revision &&
@@ -340,6 +344,22 @@ function skillContributorName(input: unknown): string {
   }
 
   return 'Other skills'
+}
+
+export function reportCategoryTabs(name: string): string[] {
+  if (name === 'Skills') {
+    return ['Overview', 'Skills']
+  }
+
+  if (name === 'Tool outputs & files' || name === 'MCP & tool definitions') {
+    return ['Overview', 'Tools']
+  }
+
+  if (name === 'System & instructions') {
+    return ['Overview', 'System']
+  }
+
+  return ['Overview']
 }
 
 export function rankContributors(

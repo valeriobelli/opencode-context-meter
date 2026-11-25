@@ -15,11 +15,12 @@ import {
   findAssistantUsage,
   promptMessages,
   promptTokensFromUsage,
-  snapshotMatchesUsage,
+  reportCategoryTabs,
   type CompositionEstimate,
   type Contributor,
 } from './estimate.ts'
 import { ContextMeter } from './rpc.ts'
+import { loadVerifiedSnapshot } from './snapshot.ts'
 import type { RequestSnapshot } from './index.ts'
 
 type TuiContext = ReturnType<typeof usePlugin>
@@ -31,6 +32,9 @@ interface ModelRefLike {
 }
 
 const DIALOG_TITLE = 'Context composition (estimated)'
+const REPORT_TABS = ['Overview', 'Skills', 'Tools', 'System'] as const
+
+type ReportTab = (typeof REPORT_TABS)[number]
 
 const bar = (percent: number) => {
   const filled = Math.max(0, Math.min(8, Math.round((percent / 100) * 8)))
@@ -180,6 +184,9 @@ function pressureLines(pressure: CompactionPressure): string[] {
   ]
 }
 
+const categoryHeader = (cat: CompositionEstimate['categories'][number]) =>
+  `~ ${cat.name}: ~${formatTokens(cat.tokens)} (${cat.percent}%)`
+
 function categoryLines(
   categories: readonly CompositionEstimate['categories'][number][],
   contributors: readonly Contributor[],
@@ -193,9 +200,10 @@ function categoryLines(
     )
 
     return [
-      `~ ${cat.name}: ~${formatTokens(cat.tokens)} (${cat.percent}%)`,
-      ...ranked.items.map((item) => `  ${item.name}: ~${formatTokens(item.tokens)}`),
-      ...(ranked.omitted ? [`  … and ${ranked.omitted} more`] : []),
+      categoryHeader(cat),
+      ...ranked.items.map((item) => `    ${item.name}: ~${formatTokens(item.tokens)}`),
+      ...(ranked.omitted ? [`    … and ${ranked.omitted} more`] : []),
+      '',
     ]
   })
 }
@@ -208,9 +216,12 @@ function formatReport(
   fresh: boolean,
   contributors: readonly Contributor[],
   categoryChars: Readonly<Record<string, number>>,
-): string {
+): Record<ReportTab, string> {
   if (report.totalTokens === undefined) {
-    return 'No prompt token usage is available yet for this session. Send a prompt or wait for a response, then run /context again.'
+    const message =
+      'No prompt token usage is available yet for this session. Send a prompt or wait for a response, then run /context again.'
+
+    return { Overview: message, Skills: message, Tools: message, System: message }
   }
 
   const category = (name: string) => report.categories.find((item) => item.name === name)?.tokens
@@ -224,22 +235,40 @@ function formatReport(
     pressure: pressure.status,
   })
 
-  return [
-    windowLine(report, modelLabel, contextLimit),
-    ...pressureLines(pressure),
-    `Potential benefit: ${benefit.kind}`,
-    benefit.reason,
-    ...(benefit.suggestion ? [benefit.suggestion] : []),
-    '',
-    ...categoryLines(report.categories, contributors, categoryChars),
-    '',
+  const notes = [
     'Category sizes are character/4 estimates, scaled to reported prompt tokens. Actual compaction may differ and does not guarantee savings.',
     ...(fresh
       ? []
       : [
           'Server snapshot unavailable or stale: hidden skill catalogs, tool definitions and system instructions remain unattributed.',
         ]),
-  ].join('\n')
+  ]
+  const detail = (tab: ReportTab) =>
+    [
+      ...categoryLines(
+        report.categories.filter((category) => reportCategoryTabs(category.name).includes(tab)),
+        contributors,
+        categoryChars,
+      ),
+      ...notes,
+    ].join('\n')
+
+  return {
+    Overview: [
+      windowLine(report, modelLabel, contextLimit),
+      ...pressureLines(pressure),
+      `Potential benefit: ${benefit.kind}`,
+      benefit.reason,
+      ...(benefit.suggestion ? [benefit.suggestion] : []),
+      '',
+      ...report.categories.map(categoryHeader),
+      '',
+      ...notes,
+    ].join('\n'),
+    Skills: detail('Skills'),
+    Tools: detail('Tools'),
+    System: detail('System'),
+  }
 }
 
 function footerLabel(report: CompositionEstimate, pressure: CompactionPressure): string {
@@ -306,37 +335,61 @@ async function loadSnapshot(
   sessionID: string,
   messages: ReturnType<TuiContext['data']['session']['message']['list']>,
   location: TuiContext['location'],
-): Promise<RequestSnapshot | undefined> {
+): Promise<RequestSnapshot | null | undefined> {
   const rpc = context.client.rpc(ContextMeter)
-  const snapshot = (await rpc.composition({ sessionID }, { location })) as RequestSnapshot | null
-  const latest = (await rpc.composition({ sessionID }, { location })) as RequestSnapshot | null
-  const assistant = findAssistantUsage(messages)
 
-  return snapshot &&
-    snapshotMatchesUsage(
-      snapshot,
-      latest,
-      assistant?.time.created,
-      context.data.session.status(sessionID),
-    )
-    ? snapshot
-    : undefined
+  return loadVerifiedSnapshot(
+    messages,
+    () => rpc.composition({ sessionID }, { location }) as Promise<RequestSnapshot | null>,
+    () => context.client.session.context({ sessionID }),
+    () => context.data.session.status(sessionID),
+  )
 }
 
-function showReport(context: TuiContext, message: string) {
+function showReport(context: TuiContext, messages: Record<ReportTab, string>) {
   const { dialog } = context.ui
 
-  dialog.show(() => (
-    <box padding={1} paddingLeft={2} paddingRight={2} gap={1}>
-      <text fg={context.theme.text.base}>{DIALOG_TITLE}</text>
-      <scrollbox focused maxHeight={Math.max(3, context.renderer.height - 8)}>
-        <text fg={context.theme.text.muted} wrapMode="word">
-          {message}
+  function ReportDialog() {
+    const [selected, setSelected] = createSignal(0)
+    let scrollbox: { scrollTo(position: number): void } | undefined
+
+    return (
+      <box padding={1} paddingLeft={2} paddingRight={2} gap={1}>
+        <text fg={context.theme.text.base}>{DIALOG_TITLE}</text>
+        <text fg={context.theme.text.base}>
+          {REPORT_TABS.map((tab, index) => (index === selected() ? `[${tab}]` : ` ${tab} `)).join(
+            '  ',
+          )}
         </text>
-      </scrollbox>
-      <text fg={context.theme.text.muted}>↑/↓ scroll · Esc close</text>
-    </box>
-  ))
+        <scrollbox
+          ref={(element) => {
+            scrollbox = element
+          }}
+          focused
+          maxHeight={Math.max(3, context.renderer.height - 9)}
+          onKeyDown={(event) => {
+            if (event.name === 'left' || event.name === 'right') {
+              setSelected(
+                (current) =>
+                  (current + (event.name === 'right' ? 1 : REPORT_TABS.length - 1)) %
+                  REPORT_TABS.length,
+              )
+              scrollbox?.scrollTo(0)
+              event.preventDefault()
+              event.stopPropagation()
+            }
+          }}
+        >
+          <text fg={context.theme.text.muted} wrapMode="word">
+            {messages[REPORT_TABS[selected()]!]}
+          </text>
+        </scrollbox>
+        <text fg={context.theme.text.muted}>←/→ tabs · ↑/↓ scroll · Esc close</text>
+      </box>
+    )
+  }
+
+  dialog.show(() => <ReportDialog />)
   dialog.set({ size: 'large', centered: true })
 }
 
@@ -374,8 +427,18 @@ async function openContextReport(
         .get({ location: sessionLocation })
         .then(effectiveCompactionConfig)
         .catch(() => undefined),
-      loadSnapshot(context, sessionID, activeMessages, sessionLocation).catch(() => undefined),
+      loadSnapshot(context, sessionID, activeMessages, sessionLocation).catch(() => null),
     ])
+
+    if (snapshot === null) {
+      await context.ui.dialog.alert({
+        title: DIALOG_TITLE,
+        message: 'The session changed while loading. Run /context again for an updated report.',
+      })
+
+      return
+    }
+
     const pressure = compactionPressure({ config, limits, promptTokens })
 
     showReport(

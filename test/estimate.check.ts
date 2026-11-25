@@ -57,12 +57,12 @@ await test('only uses assistant usage after the latest completed compaction', ()
 await test('accepts only a stable snapshot captured before or at a completed usage record', () => {
   const snapshot = { capturedAt: 10, revision: 2 }
 
-  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 11, 'idle'), true)
-  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 10, 'idle'), true)
-  assert.equal(snapshotMatchesUsage(snapshot, { revision: 3 }, 11, 'idle'), false)
-  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 9, 'idle'), false)
-  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 11, 'running'), false)
-  assert.equal(snapshotMatchesUsage(snapshot, undefined, 11, 'idle'), false)
+  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 11, 'idle', [], []), true)
+  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 10, 'idle', [], []), true)
+  assert.equal(snapshotMatchesUsage(snapshot, { revision: 3 }, 11, 'idle', [], []), false)
+  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 9, 'idle', [], []), false)
+  assert.equal(snapshotMatchesUsage(snapshot, { revision: 2 }, 11, 'running', [], []), false)
+  assert.equal(snapshotMatchesUsage(snapshot, undefined, 11, 'idle', [], []), false)
 })
 
 await test('estimates only messages sent before the assistant usage record', () => {

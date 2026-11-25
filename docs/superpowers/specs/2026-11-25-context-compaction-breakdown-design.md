@@ -22,12 +22,12 @@ Sources:
 
 ## Decisions
 
-- Use category rows rather than per-MCP-server rows (user selected **Category rows (Recommended)**).
+- Use category totals with inline contributor details, up to six per category (user selected **Inline, top 6 per category** and approved the visual example).
 - Add a server companion to the existing TUI plugin. A TUI-only implementation cannot reliably isolate MCP and tool definitions.
 - After a completed compaction, show `ctx --` until the next assistant message reports prompt usage. Never reuse the pre-compaction total or interpret compaction usage as active-context usage (user approved **Approve behavior (Recommended)**).
 - Use six estimated rows when the server snapshot is available: **Conversation**, **Tool outputs & files**, **Skills**, **MCP & tool definitions**, **System & instructions**, and **Unattributed / estimation remainder**.
-- Combine MCP and built-in tool definitions because Code Mode aggregates tools and does not support reliable per-server accounting.
-- Keep all processing local. Store and return only aggregate character counts, never prompt, skill, message, or tool-schema content.
+- Combine MCP and built-in tool totals; show individually identifiable direct definitions and visible Code Mode catalog contributions where reliably recognizable. Never attribute an entire connected inventory to the prompt.
+- Keep all processing local. Store and return names, contributor types and character counts, never prompt, skill, message, tool output, or tool-schema content.
 - Enable the server part through the existing global `opencode.jsonc` plugin list. Preserve the existing TUI-only discovery and provide a local fallback when RPC is unavailable.
 - Do not publish to npm, add provider-specific tokenizers, modify compaction, or add a Desktop GUI integration.
 - Implement the approved server/TUI design with regression tests and smoke checks (user approved **Approve design (Recommended)**).
@@ -56,8 +56,14 @@ Add `src/index.ts`, `src/rpc.ts`, and a pure hidden-request estimator:
 2. Measure the actual outgoing `system` sources and `tools` record. Do not modify the request.
 3. Classify `core/skill-guidance` as skill catalog characters; `core/codemode` and `core/mcp-guidance` plus serialized direct tool definitions as MCP/tool-definition characters; all other system sources as system characters.
 4. When instruction metadata is present, measure its individual `{ key, text }` entries instead of also measuring the containing system part, avoiding double counting. Measure system parts without source metadata directly.
-5. Keep the latest aggregate snapshot per session in memory. Clear a session snapshot when its compaction hook starts so a summarization request cannot become the latest primary snapshot.
-6. Expose a `composition(sessionID)` RPC method whose output contains only numeric aggregate counts and an optional snapshot revision/timestamp. Clear in-memory state on plugin unload.
+5. Keep the latest snapshot per session in memory with aggregate counts and contributor names, types and character counts. Clear a session snapshot when its compaction hook starts so a summarization request cannot become the latest primary snapshot.
+6. Expose a `composition(sessionID)` RPC method with those counts and a snapshot revision/timestamp, without raw content. Clear in-memory state on plugin unload.
+
+### Inline contributor detail
+
+Implementation plan: `src/request.ts` extracts only recognizable source names and character counts; `src/rpc.ts` validates the resulting arrays. `src/estimate.ts` collects named retained message content and apportions each row's measured category tokens over its known contributors. `src/tui.tsx` renders each category's top six and omitted count, retaining the existing fallback. Add regression tests in `test/request.check.ts` and `test/estimate.check.ts` before implementation, including unknown formats and zero totals; then run `pnpm run check` and a disposable TUI smoke test. Update README and Changeset. On a feature branch commit only intended files and open a PR against `main`.
+
+The approved layout is in `docs/superpowers/specs/2026-11-25-context-contributors-design.md`. In the latest measured prompt, identify loaded skill bodies separately from catalog entries, retained tool results separately from direct definitions, and system instruction sources by key. Group visible Code Mode catalog entries by server only when identifiable. Keep unrecognized text grouped, scale contributors within their category so they cannot exceed its total, and list the six largest plus an omitted count. A stale snapshot must not supply detail. Names and character counts are retained locally; never retain raw content in the snapshot.
 
 ### TUI composition
 
@@ -94,7 +100,7 @@ Source: [OpenCode compaction documentation](https://opencode.ai/docs/compaction)
 - A failed active-context request keeps the existing cached-message fallback.
 - A failed or unavailable RPC request falls back to the local composition without turning the whole `/context` command into an error.
 - Compaction and primary-request snapshots are session-scoped. Compaction requests never replace primary snapshots.
-- The hook does not mutate request data. RPC schemas allow aggregate numeric fields only; no text from system sources, skills, messages, files, or tool schemas is retained or returned.
+- The hook does not mutate request data. RPC schemas allow counts, timestamps and contributor labels only; no body text from system sources, skills, messages, files, or tool schemas is retained or returned.
 - Global configuration edits are limited to adding this plugin's path.
 
 ## Acceptance checks
@@ -103,7 +109,8 @@ Source: [OpenCode compaction documentation](https://opencode.ai/docs/compaction)
 - The footer shows `ctx --` after a fresh compaction and a measured percentage after the next assistant response — manual: disposable-session OpenCode PTY smoke check `#compaction-footer-smoke`
 - `/context` reports the six approved categories with bounded token and percentage totals when server data is available — unit: `test/estimate.check.ts` and `test/request.check.ts` `#category-accounting`
 - The loaded global plugin displays the detailed composition in an active session and retains a usable fallback without the server snapshot — manual: OpenCode PTY smoke checks `#detailed-report-and-fallback`
-- RPC output contains aggregate counts only and no prompt, skill, message, file, or tool-schema text — integration: RPC schema and live response inspection `#aggregate-only-rpc`
+- RPC output contains counts, timestamps and contributor labels only, with no prompt, skill-body, message, file, or tool-schema text — integration: RPC schema and live response inspection `#aggregate-only-rpc`
+- `/context` distinguishes loaded skill bodies, advertised skill entries, direct tool definitions and visible Code Mode catalog contributions, with up to six entries and an omitted count per category — manual: disposable-session OpenCode PTY check `#inline-contributors-smoke`
 - The footer uses labeled pressure colors and the modal explains compaction advice, including limited benefit and unknown data — manual: OpenCode PTY smoke checks `#compaction-advice-ui`
 - Rules respect effective buffer settings, automatic compaction disabled, threshold boundaries, stale snapshots, and missing inputs — unit: compaction-advice tests `#compaction-advice-rules`
 - Formatting, linting, type checking, unit tests, and Fallow pass — unit: `pnpm run check` `#repository-checks`
@@ -137,7 +144,12 @@ Source: [OpenCode compaction documentation](https://opencode.ai/docs/compaction)
   - [ ] Write failing tests for thresholds, benefit signals, and unknown data `#advice-test-first`
   - [ ] Implement rule-based pressure and benefit explanations `#advice-rules`
   - [ ] Render the labeled colored footer and modal advice `#advice-ui`
-- [ ] Run preliminary checks and commit the implementation on `main` `#commit-breakdown`
+- [x] Add inline contributor detail `#inline-contributors`
+  - [x] Test and capture names and counts from request sources without raw text `#contributor-capture`
+  - [x] Test and collect retained tool results and loaded skill bodies `#contributor-history`
+  - [x] Test and display the largest six contributors with category-consistent estimates `#contributor-display`
+- [ ] Run preliminary checks and commit the implementation on a feature branch `#commit-breakdown`
+- [ ] Open a pull request against main `#open-pull-request`
 
 ### Test
 

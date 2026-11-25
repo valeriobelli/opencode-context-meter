@@ -4,21 +4,19 @@ An [OpenCode v2](https://opencode.ai) TUI plugin that shows how much of the mode
 
 ## What it does
 
-- **Prompt footer** — shows a compact meter, for example `ctx 13% ▰▱▱▱▱▱▱▱`. If OpenCode knows the prompt token count but not the model limit, it shows the count instead. Before the first reported usage, it shows `ctx --`.
-- **`/context`** — opens a report with the prompt token count, model limit when known, and estimated shares for conversation, tools and files, and system and instructions. Press `Esc` to close.
+- **Prompt footer** — shows context usage and a labeled pressure level: low, warning, urgent, disabled, or unknown. Warning starts at 80% of the estimated auto-compaction threshold; urgent starts at 95%. Before usage is reported, and immediately after compaction, it shows `ctx --`.
+- **`/context`** — shows reported usage, estimated compaction pressure and possible benefit, and an estimated composition. Use the arrow keys to scroll and `Esc` to close. Advice is informational: the plugin never calls a model or compacts a session.
 
 ## Install
 
-Clone the repository into your global OpenCode plugins directory. OpenCode discovers it without a config change:
+Clone the repository into your global OpenCode plugins directory:
 
 ```sh
 git clone https://github.com/valeriobelli/opencode-context-meter.git \
   "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins/opencode-context-meter"
 ```
 
-Run `/reload` in a running OpenCode TUI, then open a session and type `/context`.
-
-If you keep the checkout elsewhere, add its absolute path to the `plugins` array in [`cli.json`](https://opencode.ai/docs/cli/plugins):
+For the detailed breakdown, add the absolute checkout path to the `plugins` array in global [`opencode.jsonc`](https://opencode.ai/docs/config):
 
 ```json
 {
@@ -26,19 +24,25 @@ If you keep the checkout elsewhere, add its absolute path to the `plugins` array
 }
 ```
 
+OpenCode discovers the TUI plugin automatically in the global plugins directory. Elsewhere, add the same path to the `plugins` array in [`cli.json`](https://opencode.ai/docs/cli/plugins) as well. Config changes reload automatically; run `/reload` to force a reload. Then open a session and type `/context`.
+
+Without the server entry, the TUI still works but omits hidden tool-definition estimates and cannot assess composition-based benefit.
+
 ### Requirements
 
-OpenCode v2 TUI (tested on v2.3.2). There is no Desktop GUI integration. The npm package is not yet published; use a Git checkout.
+OpenCode v2 TUI (targeted at v2.4.1). There is no Desktop GUI integration. The npm package is not yet published; use a Git checkout.
 
 ## How it works
 
 The meter uses the latest reported assistant prompt tokens, including cache reads and writes, and the selected model's context limit from OpenCode. The report asks the connected OpenCode server for the active context and falls back to the TUI's cached messages if that fails.
 
-The report estimates visible conversation and tool content at roughly one token per four characters. It assigns the remaining tokens to system and instructions. That remainder also includes estimation error; it is not a direct count of hidden prompts. The latest reported usage is not a live count of unsent input, and routed models can have a different limit from the selected alias.
+When the server snapshot matches the latest usage, the report separates conversation, tool outputs and files, skills, MCP and tool definitions, system and instructions, and an unattributed remainder. It shows up to six identifiable contributors per category: catalog entries are distinct from loaded skill bodies, and tool definitions are distinct from retained calls and results. Connected tools that are not visible in the prompt are not counted. Category and contributor sizes use roughly one token per four characters and are scaled to the reported total; they are not exact token counts. The remainder includes unmeasured content and estimation error. When the server snapshot is unavailable or stale, the report falls back to visible messages.
+
+Compaction pressure follows the effective location configuration and the model limits using the v2.4.1 buffer rules. It is an approximation: OpenCode may consider newer unmeasured content or provider overflow. Advice about possible savings is a simple rule, not a guarantee. The latest usage excludes unsent input, and routed models may have a different limit from their alias.
 
 ## Privacy
 
-The plugin computes estimates in the TUI. It reads session data from the connected OpenCode server and does not send session content to a separate service or collect telemetry.
+The server companion retains session-scoped character counts and contributor names in memory, and exposes these with timestamps through its RPC. It does not retain instruction text, tool schemas, arguments, or results. The TUI reads session data from the connected server. The plugin does not send content to a separate service or collect telemetry.
 
 ## Development
 

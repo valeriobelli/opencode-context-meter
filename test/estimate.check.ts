@@ -156,10 +156,13 @@ await test('ranks retained contributors and bounds their estimated tokens to the
   const items = Array.from({ length: 7 }, (_, i) => ({ name: `item-${i}`, chars: i + 1 }))
   const ranked = rankContributors(items, 28, 14)
 
-  assert.equal(ranked.items.length, 6)
-  assert.equal(ranked.omitted, 1)
-  assert.equal(ranked.items[0]?.name, 'item-6')
-  assert.ok(ranked.items.reduce((sum, item) => sum + item.tokens, 0) <= 14)
+  assert.equal(ranked.length, 7)
+
+  assert.deepEqual(
+    ranked.map((item) => item.name),
+    ['item-6', 'item-5', 'item-4', 'item-3', 'item-2', 'item-1', 'item-0'],
+  )
+  assert.ok(ranked.reduce((sum, item) => sum + item.tokens, 0) <= 14)
 
   assert.deepEqual(
     rankContributors(
@@ -170,10 +173,7 @@ await test('ranks retained contributors and bounds their estimated tokens to the
       8,
       2,
     ),
-    {
-      items: [{ name: 'same', tokens: 2 }],
-      omitted: 0,
-    },
+    [{ name: 'same', tokens: 2 }],
   )
 })
 

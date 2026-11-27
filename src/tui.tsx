@@ -401,9 +401,6 @@ function showReport(context: TuiContext, messages: Record<ReportTab, ReportPage>
                       </box>
                     )}
                   </For>
-                  <Show when={category.omitted > 0}>
-                    <text fg={context.theme.text.muted}> … and {category.omitted} more</text>
-                  </Show>
                 </box>
               )}
             </For>

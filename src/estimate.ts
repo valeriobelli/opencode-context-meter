@@ -366,7 +366,7 @@ export function rankContributors(
   items: readonly Pick<Contributor, 'name' | 'chars'>[],
   categoryChars: number,
   categoryTokens: number,
-): { items: { name: string; tokens: number }[]; omitted: number } {
+): { name: string; tokens: number }[] {
   const grouped = new Map<string, number>()
 
   for (const item of items) {
@@ -383,13 +383,10 @@ export function rankContributors(
     sorted.reduce((sum, item) => sum + item.chars, 0),
   )
 
-  return {
-    items: sorted.slice(0, 6).map((item) => ({
-      name: item.name,
-      tokens: denominator > 0 ? Math.floor((item.chars / denominator) * categoryTokens) : 0,
-    })),
-    omitted: Math.max(0, sorted.length - 6),
-  }
+  return sorted.map((item) => ({
+    name: item.name,
+    tokens: denominator > 0 ? Math.floor((item.chars / denominator) * categoryTokens) : 0,
+  }))
 }
 
 export function contextComposition(

@@ -27,11 +27,10 @@ export function categoryRows(
     return {
       name: category.name,
       value: `~${formatTokens(category.tokens)} · ${category.percent}%`,
-      items: ranked.items.map((item) => ({
+      items: ranked.map((item) => ({
         name: item.name.replace(/ \(catalog\)$/, ' · catalog'),
         value: `~${formatTokens(item.tokens)}`,
       })),
-      omitted: ranked.omitted,
     }
   })
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { snapshotMatchesUsage } from '../src/estimate.ts'
 import * as estimate from '../src/estimate.ts'
+import { categoryRows } from '../src/report.ts'
 
 await test('keeps labels and estimated values separate for aligned rows', async () => {
   const path = '../src/report.ts'
@@ -26,9 +27,24 @@ await test('keeps labels and estimated values separate for aligned rows', async 
           { name: 'review · loaded body', value: '~400' },
           { name: 'docs · catalog', value: '~200' },
         ],
-        omitted: 0,
       },
     ],
+  )
+})
+
+await test('includes every contributor in report rows', () => {
+  const contributors = Array.from({ length: 8 }, (_, i) => ({
+    category: 'Skills',
+    name: `skill-${i}`,
+    chars: i + 1,
+  }))
+  const rows = categoryRows([{ name: 'Skills', tokens: 36, percent: 100 }], contributors, {
+    Skills: 36,
+  })
+
+  assert.deepEqual(
+    rows[0]?.items.map((item) => item.name),
+    ['skill-7', 'skill-6', 'skill-5', 'skill-4', 'skill-3', 'skill-2', 'skill-1', 'skill-0'],
   )
 })
 

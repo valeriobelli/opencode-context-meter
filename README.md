@@ -9,28 +9,27 @@ An [OpenCode v2](https://opencode.ai) TUI plugin that shows how much of the mode
 
 ## Install
 
-Clone the repository into your global OpenCode plugins directory:
+Install the package with the OpenCode CLI. It adds the plugin to your global configuration:
 
 ```sh
-git clone https://github.com/valeriobelli/opencode-context-meter.git \
-  "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/plugins/opencode-context-meter"
+opencode plugin add opencode-context-meter@latest
 ```
 
-For the detailed breakdown, add the absolute checkout path to the `plugins` array in global [`opencode.jsonc`](https://opencode.ai/docs/config):
+Or add it to the `plugins` array in global [`opencode.jsonc`](https://opencode.ai/docs/config) yourself:
 
 ```json
 {
-  "plugins": ["/absolute/path/to/opencode-context-meter"]
+  "plugins": ["opencode-context-meter@latest"]
 }
 ```
 
-OpenCode discovers the TUI plugin automatically in the global plugins directory. Elsewhere, add the same path to the `plugins` array in [`cli.json`](https://opencode.ai/docs/cli/plugins) as well. Config changes reload automatically; run `/reload` to force a reload. Then open a session and type `/context`.
+One entry loads both the server and TUI parts. Config changes reload automatically; run `/reload` to force a reload. Then open a session and type `/context`.
 
-Without the server entry, the TUI still works but omits hidden tool-definition estimates and cannot assess composition-based benefit.
+A bare `opencode-context-meter` stays on the version it installed; `@latest` lets OpenCode update it on startup.
 
 ### Requirements
 
-OpenCode v2 TUI (targeted at v2.4.1). There is no Desktop GUI integration. The npm package is not yet published; use a Git checkout.
+OpenCode v2 TUI (targeted at v2.4.1). There is no Desktop GUI integration.
 
 ## How it works
 

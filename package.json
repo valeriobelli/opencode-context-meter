@@ -32,7 +32,9 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
+    ".": "./src/index.ts",
     "./tui": "./src/tui.tsx",
+    "./rpc": "./src/rpc.ts",
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -47,7 +49,7 @@
     "format:check": "oxfmt --check",
     "lint": "oxlint",
     "prepare": "lefthook install",
-    "test": "node --test test/estimate.check.ts",
+    "test": "node --test test/*.check.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

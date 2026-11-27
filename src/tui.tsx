@@ -1,6 +1,6 @@
 // @jsxImportSource @opentui/solid
 import { Plugin, usePlugin } from '@opencode/plugin/tui'
-import { createSignal } from 'solid-js'
+import { createSignal, For, Show } from 'solid-js'
 import {
   compactionBenefit,
   compactionPressure,
@@ -11,7 +11,6 @@ import {
 import {
   contextComposition,
   estimateComposition,
-  rankContributors,
   findAssistantUsage,
   promptMessages,
   promptTokensFromUsage,
@@ -19,6 +18,7 @@ import {
   type CompositionEstimate,
   type Contributor,
 } from './estimate.ts'
+import { categoryRows, formatTokens } from './report.ts'
 import { ContextMeter } from './rpc.ts'
 import { loadVerifiedSnapshot } from './snapshot.ts'
 import type { RequestSnapshot } from './index.ts'
@@ -40,18 +40,6 @@ const bar = (percent: number) => {
   const filled = Math.max(0, Math.min(8, Math.round((percent / 100) * 8)))
 
   return `${'▰'.repeat(filled)}${'▱'.repeat(8 - filled)}`
-}
-
-const formatTokens = (tokens: number) => {
-  if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(1)}M`
-  }
-
-  if (tokens >= 1000) {
-    return `${(tokens / 1000).toFixed(1)}k`
-  }
-
-  return `${tokens}`
 }
 
 function modelLabelFor(modelRef: ModelRefLike | undefined): string | undefined {
@@ -184,28 +172,10 @@ function pressureLines(pressure: CompactionPressure): string[] {
   ]
 }
 
-const categoryHeader = (cat: CompositionEstimate['categories'][number]) =>
-  `~ ${cat.name}: ~${formatTokens(cat.tokens)} (${cat.percent}%)`
-
-function categoryLines(
-  categories: readonly CompositionEstimate['categories'][number][],
-  contributors: readonly Contributor[],
-  categoryChars: Readonly<Record<string, number>>,
-): string[] {
-  return categories.flatMap((cat) => {
-    const ranked = rankContributors(
-      contributors.filter((item) => item.category === cat.name),
-      categoryChars[cat.name] ?? 0,
-      cat.tokens,
-    )
-
-    return [
-      categoryHeader(cat),
-      ...ranked.items.map((item) => `    ${item.name}: ~${formatTokens(item.tokens)}`),
-      ...(ranked.omitted ? [`    … and ${ranked.omitted} more`] : []),
-      '',
-    ]
-  })
+type ReportPage = {
+  summary?: string
+  categories: ReturnType<typeof categoryRows>
+  notes: string[]
 }
 
 function formatReport(
@@ -216,12 +186,16 @@ function formatReport(
   fresh: boolean,
   contributors: readonly Contributor[],
   categoryChars: Readonly<Record<string, number>>,
-): Record<ReportTab, string> {
+): Record<ReportTab, ReportPage> {
   if (report.totalTokens === undefined) {
-    const message =
-      'No prompt token usage is available yet for this session. Send a prompt or wait for a response, then run /context again.'
+    const empty = {
+      summary:
+        'No prompt token usage is available yet for this session. Send a prompt or wait for a response, then run /context again.',
+      categories: [],
+      notes: [],
+    }
 
-    return { Overview: message, Skills: message, Tools: message, System: message }
+    return { Overview: empty, Skills: empty, Tools: empty, System: empty }
   }
 
   const category = (name: string) => report.categories.find((item) => item.name === name)?.tokens
@@ -243,28 +217,27 @@ function formatReport(
           'Server snapshot unavailable or stale: hidden skill catalogs, tool definitions and system instructions remain unattributed.',
         ]),
   ]
-  const detail = (tab: ReportTab) =>
-    [
-      ...categoryLines(
-        report.categories.filter((category) => reportCategoryTabs(category.name).includes(tab)),
-        contributors,
-        categoryChars,
-      ),
-      ...notes,
-    ].join('\n')
+  const detail = (tab: ReportTab) => ({
+    categories: categoryRows(
+      report.categories.filter((category) => reportCategoryTabs(category.name).includes(tab)),
+      contributors,
+      categoryChars,
+    ),
+    notes,
+  })
 
   return {
-    Overview: [
-      windowLine(report, modelLabel, contextLimit),
-      ...pressureLines(pressure),
-      `Potential benefit: ${benefit.kind}`,
-      benefit.reason,
-      ...(benefit.suggestion ? [benefit.suggestion] : []),
-      '',
-      ...report.categories.map(categoryHeader),
-      '',
-      ...notes,
-    ].join('\n'),
+    Overview: {
+      summary: [
+        windowLine(report, modelLabel, contextLimit),
+        ...pressureLines(pressure),
+        `Potential benefit: ${benefit.kind}`,
+        benefit.reason,
+        ...(benefit.suggestion ? [benefit.suggestion] : []),
+      ].join('\n'),
+      categories: categoryRows(report.categories, [], categoryChars),
+      notes,
+    },
     Skills: detail('Skills'),
     Tools: detail('Tools'),
     System: detail('System'),
@@ -346,27 +319,41 @@ async function loadSnapshot(
   )
 }
 
-function showReport(context: TuiContext, messages: Record<ReportTab, string>) {
+function showReport(context: TuiContext, messages: Record<ReportTab, ReportPage>) {
   const { dialog } = context.ui
 
   function ReportDialog() {
     const [selected, setSelected] = createSignal(0)
+    const page = () => messages[REPORT_TABS[selected()]!]
     let scrollbox: { scrollTo(position: number): void } | undefined
 
     return (
       <box padding={1} paddingLeft={2} paddingRight={2} gap={1}>
-        <text fg={context.theme.text.base}>{DIALOG_TITLE}</text>
         <text fg={context.theme.text.base}>
-          {REPORT_TABS.map((tab, index) => (index === selected() ? `[${tab}]` : ` ${tab} `)).join(
-            '  ',
-          )}
+          <b>{DIALOG_TITLE}</b>
         </text>
+        <box flexDirection="row" gap={2}>
+          <For each={REPORT_TABS}>
+            {(tab, index) => (
+              <box>
+                <text
+                  fg={index() === selected() ? context.theme.text.base : context.theme.text.muted}
+                >
+                  {tab}
+                </text>
+                <text fg={context.theme.text.action.primary.base}>
+                  {index() === selected() ? '─'.repeat(tab.length) : ' '.repeat(tab.length)}
+                </text>
+              </box>
+            )}
+          </For>
+        </box>
         <scrollbox
           ref={(element) => {
             scrollbox = element
           }}
           focused
-          maxHeight={Math.max(3, context.renderer.height - 9)}
+          maxHeight={Math.max(3, context.renderer.height - 10)}
           onKeyDown={(event) => {
             if (event.name === 'left' || event.name === 'right') {
               setSelected(
@@ -380,9 +367,54 @@ function showReport(context: TuiContext, messages: Record<ReportTab, string>) {
             }
           }}
         >
-          <text fg={context.theme.text.muted} wrapMode="word">
-            {messages[REPORT_TABS[selected()]!]}
-          </text>
+          <box gap={1} width="100%">
+            <Show when={page().summary}>
+              <text fg={context.theme.text.muted} wrapMode="word">
+                {page().summary}
+              </text>
+            </Show>
+            <For each={page().categories}>
+              {(category) => (
+                <box width="100%">
+                  <box flexDirection="row" width="100%" gap={2}>
+                    <text fg={context.theme.text.base} flexGrow={1} flexShrink={1} wrapMode="word">
+                      <b>{category.name}</b>
+                    </text>
+                    <text fg={context.theme.text.base} flexShrink={0}>
+                      <b>{category.value}</b>
+                    </text>
+                  </box>
+                  <For each={category.items}>
+                    {(item) => (
+                      <box flexDirection="row" width="100%" paddingLeft={2} gap={2}>
+                        <text
+                          fg={context.theme.text.base}
+                          flexGrow={1}
+                          flexShrink={1}
+                          wrapMode="word"
+                        >
+                          {item.name}
+                        </text>
+                        <text fg={context.theme.text.base} flexShrink={0}>
+                          {item.value}
+                        </text>
+                      </box>
+                    )}
+                  </For>
+                  <Show when={category.omitted > 0}>
+                    <text fg={context.theme.text.muted}> … and {category.omitted} more</text>
+                  </Show>
+                </box>
+              )}
+            </For>
+            <For each={page().notes}>
+              {(note) => (
+                <text fg={context.theme.text.muted} wrapMode="word">
+                  {note}
+                </text>
+              )}
+            </For>
+          </box>
         </scrollbox>
         <text fg={context.theme.text.muted}>←/→ tabs · ↑/↓ scroll · Esc close</text>
       </box>

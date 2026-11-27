@@ -3,6 +3,35 @@ import { test } from 'node:test'
 import { snapshotMatchesUsage } from '../src/estimate.ts'
 import * as estimate from '../src/estimate.ts'
 
+await test('keeps labels and estimated values separate for aligned rows', async () => {
+  const path = '../src/report.ts'
+  const report = await import(path).catch(() => ({}))
+
+  assert.equal(typeof report.categoryRows, 'function')
+
+  assert.deepEqual(
+    report.categoryRows(
+      [{ name: 'Skills', tokens: 1000, percent: 25 }],
+      [
+        { category: 'Skills', name: 'review · loaded body', chars: 40 },
+        { category: 'Skills', name: 'docs (catalog)', chars: 20 },
+      ],
+      { Skills: 100 },
+    ),
+    [
+      {
+        name: 'Skills',
+        value: '~1.0k · 25%',
+        items: [
+          { name: 'review · loaded body', value: '~400' },
+          { name: 'docs · catalog', value: '~200' },
+        ],
+        omitted: 0,
+      },
+    ],
+  )
+})
+
 await test('groups report categories under the correct tabs', () => {
   const tabs = (estimate as unknown as { reportCategoryTabs?: (name: string) => string[] })
     .reportCategoryTabs

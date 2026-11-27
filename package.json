@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-context-meter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenCode TUI plugin that shows context window usage in the footer and an estimated category breakdown via /context",
   "keywords": [
     "context",

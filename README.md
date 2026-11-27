@@ -53,17 +53,6 @@ pnpm run check
 
 Use Node 24. The check runs formatting, linting, TypeScript, unit tests, and Fallow. Use `pnpm changeset` to document user-facing changes.
 
-### Release setup
-
-Before enabling the release workflow:
-
-1. Configure the GitHub `release` environment with required reviewers. Referencing an environment in a workflow does not create an approval rule. The workflow can publish on a push to `main` or a manual run. See [GitHub's environment instructions](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
-2. In repository settings, allow GitHub Actions to create pull requests. A version PR created with the default GitHub token may need a maintainer to approve its CI runs. See [Changesets automation](https://changesets.dev/guide/automating#prerequisites).
-3. If the package has not been published, follow [Changesets' first-publication instructions](https://changesets.dev/guide/versioning-and-publishing#trusted-publishing) before configuring trusted publishing. Treat that initial manual publication as a separate release.
-4. Configure the npm trusted publisher for `valeriobelli/opencode-context-meter`, workflow `release.yml`, and environment `release`, with direct `npm publish` allowed. A new trusted publisher must complete its first successful publication within two days. See [npm trusted publishing](https://docs.npmjs.com/trusted-publishers).
-
-A repository administrator can install the [Changesets bot](https://github.com/apps/changeset-bot) to post non-blocking changeset reminders on pull requests, including those from forks. No PR-comment workflow or bot installation is included in this repository.
-
 ## License
 
 [MIT](./LICENSE)
